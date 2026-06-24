@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arabic → Ge'ez · Numeral Converter</title>
+  <style>
+    :root {
+      --bg-0: #0e0b06;
+      --bg-1: #1a1408;
+      --gold: #ffcf5c;
+      --gold-soft: #ffe6a8;
+      --green: #2bb673;
+      --red: #ff6b6b;
+      --text: #f6efe0;
+      --muted: #b8a98a;
+      --glass: rgba(255, 255, 255, 0.05);
+      --glass-brd: rgba(255, 223, 150, 0.18);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 12% -10%, #3a2c0c 0%, transparent 55%),
+                  radial-gradient(1000px 700px at 110% 8%, #123a26 0%, transparent 52%),
+                  linear-gradient(160deg, var(--bg-0), var(--bg-1));
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    .blob {
+      position: fixed; border-radius: 50%; filter: blur(70px);
+      opacity: 0.30; z-index: 0; pointer-events: none;
+      animation: float 20s ease-in-out infinite;
+    }
+    .blob.b1 { width: 440px; height: 440px; background: #d4a017; top: -130px; left: -90px; }
+    .blob.b2 { width: 360px; height: 360px; background: #1f9e6f; bottom: -120px; right: -60px; animation-delay: -7s; }
+    .blob.b3 { width: 300px; height: 300px; background: #c0392b; top: 42%; left: 58%; animation-delay: -13s; }
+    @keyframes float {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33%      { transform: translate(40px,-30px) scale(1.08); }
+      66%      { transform: translate(-30px,25px) scale(0.95); }
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 38px 22px 60px; }
+
+    header { text-align: center; margin-bottom: 26px; }
+    header h1 {
+      margin: 0; font-size: clamp(1.8rem, 4vw, 2.9rem); font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(90deg, var(--gold-soft), var(--gold), var(--green));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    header p { margin: 10px auto 0; max-width: 640px; color: var(--muted); line-height: 1.55; }
+    header .geez-hint { font-size: 1.6rem; color: var(--gold); letter-spacing: 6px; margin-top: 6px; }
+
+    .card {
+      background: var(--glass); border: 1px solid var(--glass-brd); border-radius: 22px;
+      box-shadow: var(--shadow); backdrop-filter: blur(14px); padding: 22px;
+    }
+
+    .layout { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; align-items: start; }
+    @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ---- input ---- */
+    .field label {
+      display: block; font-size: 0.8rem; color: var(--muted);
+      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1.5px;
+    }
+    .input-row { display: flex; gap: 10px; }
+    input[type="number"] {
+      flex: 1; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--glass-brd);
+      background: rgba(0,0,0,0.3); color: var(--text); font-size: 1.4rem; font-weight: 700; outline: none;
+      transition: border .25s, box-shadow .25s;
+    }
+    input[type="number"]:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,207,92,0.22); }
+    button {
+      padding: 12px 18px; border: 1px solid var(--glass-brd); border-radius: 14px;
+      background: var(--glass); color: var(--text); font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: transform .15s, background .25s, box-shadow .25s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+    button.primary { background: linear-gradient(90deg, var(--gold), #e0a93c); border: none; color: #3a2a00; }
+    button.primary:hover { box-shadow: 0 10px 28px rgba(255,207,92,.45); }
+
+    .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .chip {
+      padding: 6px 13px; border-radius: 999px; border: 1px solid var(--glass-brd);
+      background: rgba(255,255,255,0.04); color: var(--muted); font-size: 0.85rem; cursor: pointer;
+      transition: all .2s;
+    }
+    .chip:hover { color: var(--gold); border-color: var(--gold); transform: translateY(-2px); }
+
+    /* ---- result glyphs ---- */
+    .result { margin-top: 22px; min-height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .glyphs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .glyph {
+      position: relative;
+      font-size: clamp(2.4rem, 7vw, 4.2rem); line-height: 1; font-weight: 700;
+      color: var(--gold);
+      text-shadow: 0 0 18px rgba(255,207,92,0.45);
+      padding: 4px 6px; border-radius: 12px; cursor: default;
+      animation: glyphIn .55s cubic-bezier(.2,1.5,.4,1) both;
+      transition: transform .25s, text-shadow .25s, color .25s;
+    }
+    .glyph:hover { transform: translateY(-8px) scale(1.12); text-shadow: 0 0 28px var(--gold); }
+    .glyph.mult { color: var(--green); text-shadow: 0 0 18px rgba(43,182,115,0.5); }
+    @keyframes glyphIn {
+      0%   { opacity: 0; transform: translateY(18px) rotateX(-80deg) scale(.6); }
+      100% { opacity: 1; transform: none; }
+    }
+    /* hover tooltip */
+    .glyph[data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+      margin-bottom: 6px; padding: 5px 10px; border-radius: 8px; white-space: nowrap;
+      background: #000; color: var(--gold-soft); font-size: 0.85rem; font-weight: 600;
+      box-shadow: 0 6px 18px rgba(0,0,0,.5); pointer-events: none;
+    }
+    .arabic-echo { margin-top: 14px; font-size: 1.05rem; color: var(--muted); }
+    .arabic-echo b { color: var(--text); }
+    .note { margin-top: 10px; color: var(--red); font-weight: 600; }
+
+    /* ---- breakdown ---- */
+    .panel-title { font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 14px; }
+    .rows { display: flex; flex-direction: column; gap: 10px; }
+    .row {
+      display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+      padding: 12px 14px; border-radius: 14px;
+      background: rgba(0,0,0,0.22); border: 1px solid var(--glass-brd);
+      animation: slideIn .45s ease both;
+    }
+    .row .place { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .row .math { font-size: 1.0rem; color: var(--text); margin-top: 2px; }
+    .row .math b { color: var(--gold); }
+    .row .rgeez { font-size: 1.9rem; color: var(--gold); text-shadow: 0 0 14px rgba(255,207,92,.4); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+    .total {
+      margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--glass-brd);
+      display: flex; justify-content: space-between; font-size: 1.05rem;
+    }
+    .total b { color: var(--green); }
+
+    /* ---- reference chart ---- */
+    .ref-card { margin-top: 22px; }
+    .ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+    .ref {
+      text-align: center; padding: 10px 4px; border-radius: 12px;
+      background: rgba(0,0,0,0.2); border: 1px solid var(--glass-brd);
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .ref:hover { transform: translateY(-4px) scale(1.06); border-color: var(--gold); box-shadow: 0 8px 18px rgba(0,0,0,.4); }
+    .ref .g { font-size: 1.7rem; color: var(--gold); }
+    .ref .v { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+    .ref-sep { grid-column: 1 / -1; height: 1px; background: var(--glass-brd); margin: 4px 0; }
+
+    .err { color: var(--red); font-size: 0.92rem; min-height: 18px; margin-top: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <div class="wrap">
+    <header>
+      <h1>Arabic → Ge'ez Numerals</h1>
+      <div class="geez-hint">፩ ፲ ፻ ፼</div>
+      <p>
+        Type any number and watch it transform into Ethiopic (Ge'ez) numerals —
+        glyph by glyph — with a place-value breakdown that shows exactly how it’s built.
+      </p>
+    </header>
+
+    <div class="layout">
+      <!-- converter -->
+      <div class="card">
+        <div class="field">
+          <label for="num">Enter a number</label>
+          <div class="input-row">
+            <input type="number" id="num" min="0" max="100000000" value="1234" />
+            <button class="primary" id="convertBtn">Convert</button>
+            <button id="randBtn" title="Random number">🎲</button>
+          </div>
+        </div>
+        <div class="examples" id="examples"></div>
+
+        <div class="result">
+          <div class="glyphs" id="glyphs"></div>
+          <div class="arabic-echo" id="echo"></div>
+          <div class="note" id="note"></div>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+
+      <!-- breakdown -->
+      <div class="card">
+        <p class="panel-title">Place-value breakdown</p>
+        <div class="rows" id="rows"></div>
+        <div class="total" id="total" style="display:none">
+          <span>Total</span><span><b id="totalVal"></b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- reference -->
+    <div class="card ref-card">
+      <p class="panel-title">Ge'ez numeral reference (hover to enlarge)</p>
+      <div class="ref-grid" id="refGrid"></div>
+    </div>
+  </div>
+
+  {% verbatim %}
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const ONES = ["", "፩","፪","፫","፬","፭","፮","፯","፰","፱"];
+    const TENS = ["", "፲","፳","፴","፵","፶","፷","፸","፹","፺"];
+    const EXAMPLES = [7, 42, 100, 365, 1234, 2026, 10000, 75432];
+
+    // ---- build example chips ----
+    EXAMPLES.forEach((v) => {
+      const c = document.createElement("div");
+      c.className = "chip";
+      c.textContent = v.toLocaleString();
+      c.addEventListener("click", () => { $("num").value = v; convert(); });
+      $("examples").appendChild(c);
+    });
+
+    // ---- build the reference chart ----
+    function buildRef() {
+      const grid = $("refGrid");
+      for (let i = 1; i <= 9; i++) addRef(ONES[i], i);
+      sep();
+      for (let i = 1; i <= 9; i++) addRef(TENS[i], i * 10);
+      sep();
+      addRef("፻", "100");
+      addRef("፼", "10,000");
+
+      function addRef(g, v) {
+        const d = document.createElement("div");
+        d.className = "ref";
+        d.innerHTML = '<div class="g">' + g + '</div><div class="v">' + v + '</div>';
+        grid.appendChild(d);
+      }
+      function sep() {
+        const s = document.createElement("div");
+        s.className = "ref-sep";
+        grid.appendChild(s);
+      }
+    }
+    buildRef();
+
+    // ---- render a converted result ----
+    function render(data) {
+      const glyphs = $("glyphs");
+      glyphs.innerHTML = "";
+      $("note").textContent = data.note || "";
+
+      data.glyphs.forEach((g, i) => {
+        const el = document.createElement("span");
+        const isMult = g.ch === "፻" || g.ch === "፼";
+        el.className = "glyph" + (isMult ? " mult" : "");
+        el.textContent = g.ch;
+        if (g.value != null) el.dataset.tip = g.label + "  =  " + g.value.toLocaleString();
+        el.style.animationDelay = (i * 0.09) + "s";
+        glyphs.appendChild(el);
+      });
+
+      $("echo").innerHTML = data.geez
+        ? "<b>" + data.n.toLocaleString() + "</b> &nbsp;=&nbsp; " + data.geez
+        : "";
+
+      // breakdown rows
+      const rows = $("rows");
+      rows.innerHTML = "";
+      data.groups.forEach((grp, i) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.style.animationDelay = (i * 0.12) + "s";
+        const math = grp.symbol
+          ? "<b>" + grp.count + "</b> × " + grp.subtotal / grp.count + " = " + grp.subtotal.toLocaleString()
+          : "<b>" + grp.count + "</b> ones";
+        row.innerHTML =
+          '<div><div class="place">' + grp.place + '</div>' +
+          '<div class="math">' + math + '</div></div>' +
+          '<div class="rgeez">' + grp.geez + '</div>';
+        rows.appendChild(row);
+      });
+
+      if (data.groups.length) {
+        $("total").style.display = "flex";
+        $("totalVal").textContent = data.n.toLocaleString();
+      } else {
+        $("total").style.display = "none";
+      }
+    }
+
+    // ---- call the API ----
+    let timer = null;
+    async function convert() {
+      $("err").textContent = "";
+      const n = $("num").value.trim();
+      if (n === "") return;
+      try {
+        const res = await fetch("/api/convert?n=" + encodeURIComponent(n));
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Conversion failed");
+        render(data);
+      } catch (e) {
+        $("err").textContent = e.message;
+      }
+    }
+
+    // ---- wire up ----
+    $("convertBtn").addEventListener("click", convert);
+    $("num").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(convert, 280); });
+    $("num").addEventListener("keydown", (e) => { if (e.key === "Enter") convert(); });
+    $("randBtn").addEventListener("click", () => {
+      $("num").value = Math.floor(Math.random() * 99999) + 1;
+      convert();
+    });
+
+    // first render
+    convert();
+  </script>
+  {% endverbatim %}
+</body>
+</html>
