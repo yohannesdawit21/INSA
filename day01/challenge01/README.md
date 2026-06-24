@@ -50,6 +50,9 @@ challenge01/
 
 There is **no symbol for zero**, so the app says so explicitly when you enter 0.
 
+> 📖 For a line-by-line walkthrough of the algorithm, backend, and animation
+> code, see [LOGIC.md](LOGIC.md).
+
 ## How it fits together
 
 1. The browser calls `GET /api/convert?n=1234`.

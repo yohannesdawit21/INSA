@@ -39,6 +39,9 @@ INSA/
         └── index.html            # the entire animated UI (HTML/CSS/JS)
 ```
 
+> 📖 For a line-by-line walkthrough of the algorithm, backend, and animation
+> code, see [LOGIC.md](LOGIC.md).
+
 ## How it fits together
 
 1. The browser loads `index.html` and calls `GET /api/solve?n=7&k=3`.
