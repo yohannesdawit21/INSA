@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Josephus Circle · Interactive Visualizer</title>
+  <style>
+    :root {
+      --bg-0: #0b0d1a;
+      --bg-1: #141833;
+      --accent: #7c5cff;
+      --accent-2: #22d3ee;
+      --danger: #ff5470;
+      --gold: #ffd166;
+      --text: #e8eaff;
+      --muted: #9aa3c7;
+      --glass: rgba(255, 255, 255, 0.06);
+      --glass-brd: rgba(255, 255, 255, 0.12);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 15% -10%, #1d2350 0%, transparent 55%),
+                  radial-gradient(1000px 700px at 110% 10%, #2a1a4a 0%, transparent 50%),
+                  linear-gradient(160deg, var(--bg-0), var(--bg-1));
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    /* floating animated blobs in the background */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.35;
+      z-index: 0;
+      animation: float 18s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .blob.b1 { width: 420px; height: 420px; background: #6d4bff; top: -120px; left: -80px; }
+    .blob.b2 { width: 360px; height: 360px; background: #22d3ee; bottom: -120px; right: -60px; animation-delay: -6s; }
+    .blob.b3 { width: 300px; height: 300px; background: #ff5fa2; top: 40%; left: 60%; animation-delay: -11s; }
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33%      { transform: translate(40px, -30px) scale(1.08); }
+      66%      { transform: translate(-30px, 25px) scale(0.95); }
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 38px 22px 60px;
+    }
+
+    header { text-align: center; margin-bottom: 28px; }
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 2.9rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, var(--accent-2), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    header p { margin: 10px auto 0; max-width: 620px; color: var(--muted); line-height: 1.55; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.25fr 0.9fr;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--glass-brd);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      padding: 22px;
+    }
+
+    /* ---- Arena ---- */
+    .arena-card { display: flex; flex-direction: column; align-items: center; }
+    .arena {
+      position: relative;
+      width: 100%;
+      max-width: 540px;
+      aspect-ratio: 1 / 1;
+      margin: 6px auto 4px;
+    }
+    .ring {
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+    }
+    .pointer {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 42%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent-2));
+      transform-origin: left center;
+      transform: rotate(-90deg);
+      transition: transform 0.45s cubic-bezier(.5, 1.4, .4, 1);
+      border-radius: 3px;
+      box-shadow: 0 0 16px var(--accent-2);
+      z-index: 2;
+    }
+    .pointer::after {
+      content: "";
+      position: absolute;
+      right: -6px; top: 50%;
+      width: 12px; height: 12px;
+      transform: translateY(-50%);
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 14px var(--accent-2);
+    }
+    .hub {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 14px; height: 14px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent);
+      z-index: 2;
+    }
+
+    .person {
+      position: absolute;
+      width: 38px; height: 38px;
+      display: grid;
+      place-items: center;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(150deg, #5b6bff, #8a5cff);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: transform .35s cubic-bezier(.5,1.5,.4,1), opacity .5s ease,
+                  background .4s ease, box-shadow .4s ease, filter .4s ease;
+      z-index: 1;
+    }
+    .person:hover {
+      transform: translate(-50%, -50%) scale(1.28);
+      box-shadow: 0 0 22px var(--accent-2);
+      z-index: 4;
+    }
+    .person.active {
+      background: linear-gradient(150deg, #fff, var(--accent-2));
+      color: #08263a;
+      box-shadow: 0 0 26px var(--accent-2);
+      transform: translate(-50%, -50%) scale(1.32);
+      z-index: 3;
+    }
+    .person.eliminated {
+      background: linear-gradient(150deg, #3a2030, #20131c);
+      color: rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 84, 112, 0.4);
+      opacity: 0.28;
+      transform: translate(-50%, -50%) scale(0.72);
+      box-shadow: none;
+    }
+    .person.flash {
+      animation: pop 0.5s ease;
+      background: linear-gradient(150deg, var(--danger), #b3203c) !important;
+      color: #fff !important;
+    }
+    @keyframes pop {
+      0%   { transform: translate(-50%, -50%) scale(1.5); box-shadow: 0 0 30px var(--danger); }
+      100% { transform: translate(-50%, -50%) scale(0.72); }
+    }
+    .person.survivor {
+      background: linear-gradient(150deg, #fff3c4, var(--gold)) !important;
+      color: #4a3500 !important;
+      opacity: 1 !important;
+      border-color: #fff;
+      transform: translate(-50%, -50%) scale(1.4);
+      box-shadow: 0 0 30px var(--gold), 0 0 60px rgba(255, 209, 102, 0.5);
+      animation: glow 1.6s ease-in-out infinite;
+      z-index: 5;
+    }
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 26px var(--gold), 0 0 50px rgba(255,209,102,.35); }
+      50%      { box-shadow: 0 0 40px var(--gold), 0 0 90px rgba(255,209,102,.65); }
+    }
+
+    .verdict {
+      min-height: 30px;
+      margin-top: 6px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--muted);
+      transition: color .3s ease;
+    }
+    .verdict b { color: var(--gold); }
+
+    /* ---- Controls ---- */
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: flex; justify-content: space-between;
+      font-size: 0.82rem; color: var(--muted);
+      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .field label b { color: var(--accent-2); font-size: 0.95rem; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    .num-row { display: flex; gap: 12px; }
+    .num-row .field { flex: 1; }
+    input[type="number"] {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-brd);
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border .25s ease, box-shadow .25s ease;
+    }
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+    }
+
+    .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    button {
+      padding: 12px 14px;
+      border: 1px solid var(--glass-brd);
+      border-radius: 12px;
+      background: var(--glass);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .15s ease, background .25s ease, box-shadow .25s ease, opacity .2s;
+    }
+    button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.35); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary {
+      grid-column: 1 / -1;
+      background: linear-gradient(90deg, var(--accent), #a36bff);
+      border: none;
+      font-size: 1.02rem;
+    }
+    button.primary:hover { box-shadow: 0 10px 30px rgba(124, 92, 255, 0.5); }
+
+    .stats { display: flex; gap: 10px; margin: 18px 0 8px; }
+    .stat {
+      flex: 1; text-align: center;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid var(--glass-brd);
+      border-radius: 14px; padding: 12px 6px;
+    }
+    .stat .v { font-size: 1.5rem; font-weight: 800; color: #fff; }
+    .stat .l { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .log-title { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 8px 0; }
+    .log {
+      max-height: 200px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 6px;
+      padding-right: 4px;
+    }
+    .log-item {
+      font-size: 0.88rem;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(255, 84, 112, 0.1);
+      border-left: 3px solid var(--danger);
+      animation: slideIn .35s ease;
+    }
+    .log-item.win { background: rgba(255, 209, 102, 0.12); border-left-color: var(--gold); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+    .log::-webkit-scrollbar { width: 6px; }
+    .log::-webkit-scrollbar-thumb { background: var(--glass-brd); border-radius: 6px; }
+
+    .err { color: var(--danger); font-size: 0.9rem; margin-top: 10px; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <div class="wrap">
+    <header>
+      <h1>The Josephus Circle</h1>
+      <p>
+        <b>n</b> people stand in a circle. Counting from the first, every
+        <b>k</b>-th person is eliminated — until one survivor remains.
+        Press play and watch the circle decide.
+      </p>
+    </header>
+
+    <div class="layout">
+      <!-- Arena -->
+      <div class="card arena-card">
+        <div class="arena" id="arena">
+          <div class="ring"></div>
+          <div class="pointer" id="pointer"></div>
+          <div class="hub"></div>
+        </div>
+        <div class="verdict" id="verdict">Set the numbers and press “Build circle”.</div>
+      </div>
+
+      <!-- Controls -->
+      <div class="card">
+        <div class="num-row">
+          <div class="field">
+            <label for="n">People <b id="nOut">7</b></label>
+            <input type="number" id="n" min="1" max="200" value="7" />
+          </div>
+          <div class="field">
+            <label for="k">Count (k) <b id="kOut">3</b></label>
+            <input type="number" id="k" min="1" max="999" value="3" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="speed">Animation speed <b><span id="speedOut">1.0</span>×</b></label>
+          <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1" />
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="buildBtn">⟳ Build circle</button>
+          <button id="playBtn" disabled>▶ Play</button>
+          <button id="stepBtn" disabled>⏭ Step</button>
+          <button id="resetBtn" disabled>↺ Reset</button>
+        </div>
+        <div class="err" id="err"></div>
+
+        <div class="stats">
+          <div class="stat"><div class="v" id="aliveStat">—</div><div class="l">Alive</div></div>
+          <div class="stat"><div class="v" id="outStat">—</div><div class="l">Eliminated</div></div>
+          <div class="stat"><div class="v" id="survStat">—</div><div class="l">Survivor</div></div>
+        </div>
+
+        <div class="log-title">Elimination log</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  {% verbatim %}
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const arena = $("arena");
+
+    // ---- state ----
+    let nodes = [];        // DOM elements, index 0 == person 1
+    let order = [];        // elimination order (person numbers)
+    let survivor = null;
+    let stepIdx = 0;       // how many eliminations have been played
+    let playing = false;
+    let timer = null;
+
+    // ---- geometry: place person dots evenly around the ring ----
+    function layout() {
+      const size = arena.clientWidth;
+      const cx = size / 2, cy = size / 2;
+      const R = size * 0.40;
+      const total = nodes.length;
+      nodes.forEach((el, i) => {
+        const ang = (-90 + (360 * i) / total) * (Math.PI / 180);
+        el.style.left = (cx + R * Math.cos(ang)) + "px";
+        el.style.top = (cy + R * Math.sin(ang)) + "px";
+      });
+    }
+    window.addEventListener("resize", () => { if (nodes.length) layout(); });
+
+    function pointAt(personNumber) {
+      const i = personNumber - 1;
+      const ang = -90 + (360 * i) / nodes.length;
+      $("pointer").style.transform = "rotate(" + ang + "deg)";
+    }
+
+    function setButtons() {
+      const built = nodes.length > 0;
+      const done = stepIdx >= order.length;
+      $("playBtn").disabled = !built || done;
+      $("stepBtn").disabled = !built || done;
+      $("resetBtn").disabled = !built;
+      $("playBtn").textContent = playing ? "⏸ Pause" : "▶ Play";
+    }
+
+    function updateStats() {
+      $("aliveStat").textContent = nodes.length - stepIdx;
+      $("outStat").textContent = stepIdx;
+      $("survStat").textContent = (stepIdx >= order.length) ? survivor : "—";
+    }
+
+    async function build() {
+      stop();
+      $("err").textContent = "";
+      const n = parseInt($("n").value, 10);
+      const k = parseInt($("k").value, 10);
+
+      let data;
+      try {
+        const res = await fetch("/api/solve?n=" + n + "&k=" + k);
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Request failed");
+      } catch (e) {
+        $("err").textContent = e.message;
+        return;
+      }
+
+      order = data.order;
+      survivor = data.survivor;
+      stepIdx = 0;
+
+      // wipe old nodes
+      nodes.forEach((el) => el.remove());
+      nodes = [];
+
+      for (let i = 1; i <= data.n; i++) {
+        const el = document.createElement("div");
+        el.className = "person";
+        el.textContent = i;
+        el.dataset.num = i;
+        el.title = "Person " + i;
+        el.addEventListener("mouseenter", () => pointAt(i));
+        arena.appendChild(el);
+        nodes.push(el);
+      }
+      layout();
+      $("pointer").style.transform = "rotate(-90deg)";
+      $("log").innerHTML = "";
+      $("verdict").innerHTML = data.n === 1
+        ? "Only one person — they win by default."
+        : "Circle ready. Press play to begin the count.";
+      updateStats();
+      setButtons();
+    }
+
+    function logLine(text, win) {
+      const div = document.createElement("div");
+      div.className = "log-item" + (win ? " win" : "");
+      div.textContent = text;
+      $("log").prepend(div);
+    }
+
+    // play one elimination
+    function step() {
+      if (stepIdx >= order.length) return;
+      const victim = order[stepIdx];
+      const el = nodes[victim - 1];
+
+      pointAt(victim);
+      el.classList.add("active");
+
+      setTimeout(() => {
+        el.classList.remove("active");
+        el.classList.add("flash");
+        logLine("#" + (stepIdx + 1) + "  ·  Person " + victim + " is eliminated", false);
+        setTimeout(() => {
+          el.classList.remove("flash");
+          el.classList.add("eliminated");
+        }, 250);
+
+        stepIdx++;
+        updateStats();
+
+        if (stepIdx >= order.length) {
+          const s = nodes[survivor - 1];
+          s.classList.remove("eliminated", "active");
+          s.classList.add("survivor");
+          pointAt(survivor);
+          $("verdict").innerHTML = "🏆 Survivor is <b>Person " + survivor + "</b>";
+          logLine("🏆 Person " + survivor + " survives!", true);
+          stop();
+        }
+        setButtons();
+      }, 260 / speedFactor());
+    }
+
+    function speedFactor() { return parseFloat($("speed").value) || 1; }
+
+    function play() {
+      if (playing) { stop(); return; }
+      if (stepIdx >= order.length) return;
+      playing = true;
+      setButtons();
+      const tick = () => {
+        if (!playing || stepIdx >= order.length) { stop(); return; }
+        step();
+        timer = setTimeout(tick, 720 / speedFactor());
+      };
+      tick();
+    }
+
+    function stop() {
+      playing = false;
+      if (timer) { clearTimeout(timer); timer = null; }
+      setButtons();
+    }
+
+    // ---- wire up ----
+    $("buildBtn").addEventListener("click", build);
+    $("playBtn").addEventListener("click", play);
+    $("stepBtn").addEventListener("click", () => { stop(); step(); });
+    $("resetBtn").addEventListener("click", build);
+    $("n").addEventListener("input", (e) => { $("nOut").textContent = e.target.value; });
+    $("k").addEventListener("input", (e) => { $("kOut").textContent = e.target.value; });
+    $("speed").addEventListener("input", (e) => { $("speedOut").textContent = parseFloat(e.target.value).toFixed(2); });
+
+    // build one on first load
+    build();
+  </script>
+  {% endverbatim %}
+</body>
+</html>
